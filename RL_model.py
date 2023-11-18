@@ -8,7 +8,7 @@ class BreakoutQNet(nn.Module):
 
         in_c, in_h, in_w = state_shape
 
-        cov_out_size = lambda in_size, kernal, stride: ((in_size - kernal) / stride) + 1
+        cov_out_size = lambda in_size, kernal, stride: int(((in_size - kernal) / stride) + 1)
 
         fc_height = cov_out_size(cov_out_size(in_h, 8, 4), 4, 2)
         fc_width = cov_out_size(cov_out_size(in_w, 8, 4), 4, 2)
@@ -25,6 +25,7 @@ class BreakoutQNet(nn.Module):
 
     def forward(self, state):
         h = self.activ1(self.conv1(state))
-        h = self.flatten(self.drop1(self.conv2(h)))
-        h = self.drop2(self.activ2(self.fc1(state)))
+        h = self.drop1(self.conv2(h))
+        h = self.flatten(h)
+        h = self.drop2(self.activ2(self.fc1(h)))
         return self.final_fc(h)

@@ -28,8 +28,8 @@ def main():
     for frame in state:
         t = transforms(frame)
         tl.append(t)
-    
-    print(torch.cat(tl).dtype)
+    tl = torch.cat(tl).unsqueeze(0)
+    print(torch.cat((tl, tl)).shape)
     return
 
 if __name__ == '__main__':

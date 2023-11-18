@@ -16,7 +16,7 @@ from torchvision.transforms import v2
 import warnings
 warnings.simplefilter("ignore")
 
-num_episodes = 600
+num_episodes = 1200
 BATCH_SIZE = 128
 GAMMA = 0.99
 EPS_START = 0.9
@@ -39,7 +39,7 @@ def main():
 
     n_actions = env.action_space.n
     state, info = env.reset()
-    state_shape = state.shape
+    state_shape = transform(state).shape
 
     policy_net = BreakoutQNet(state_shape, n_actions).to(device)
     target_net = BreakoutQNet(state_shape, n_actions).to(device)
@@ -53,9 +53,10 @@ def main():
     for i_episode in range(num_episodes):
         # Initialize the environment and get it's state
         state, info = env.reset()
-        state = transform(state).to(device)
+        state = transform(state).unsqueeze(0).to(device)
         running_reward = 0.0
-        for t in count():
+        done = False
+        while not done:
             action = select_action(state, env, policy_net)
             observation, reward, terminated, truncated, _ = env.step(action.item())
             running_reward += reward
@@ -65,7 +66,7 @@ def main():
             if terminated:
                 next_state = None
             else:
-                next_state = transform(observation).to(device)
+                next_state = transform(observation).unsqueeze(0).to(device)
 
             # Store the transition in memory
             memory.push(state, action, next_state, reward)
@@ -84,10 +85,8 @@ def main():
                 target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
             target_net.load_state_dict(target_net_state_dict)
 
-            if done:
-                reward_per_episode.append(running_reward)
-                print(f'Episode {i_episode+1}/{num_episodes}, running reward: {running_reward}')
-                break
+        reward_per_episode.append(running_reward)
+        print(f'Episode {i_episode+1}/{num_episodes}, running reward: {running_reward}')
 
     torch.save(policy_net.state_dict(),'data\\model.pth')
     print('Complete')
@@ -178,7 +177,7 @@ def optimize_model(memory, policy_net, target_net, optimizer, loss_func):
     optimizer.step()
 
 
-def transform(state, device):
+def transform(state):
     frame_list = []
     for frame in state:
         t_frame = transforms(frame)
