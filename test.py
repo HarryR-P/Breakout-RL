@@ -12,13 +12,14 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torchvision.transforms import v2
+from torchvision.transforms.functional import crop
 
 warnings.simplefilter("ignore")
 
 def main():
     transforms = v2.Compose([
         v2.ToTensor(),
-        v2.Resize(size=(110,84), antialias=True),
+        v2.Resize(size=(110,84)),
     ])
     env = gym.make('ALE/Breakout-v5',
                    obs_type="grayscale")
@@ -26,10 +27,11 @@ def main():
     state, info = env.reset()
     tl = []
     for frame in state:
-        t = transforms(frame)
+        t = crop(transforms(frame),20,0,84,84)
         tl.append(t)
     tl = torch.cat(tl).unsqueeze(0)
-    print(torch.cat((tl, tl)).shape)
+    plt.imshow(tl.numpy()[0][0])
+    plt.show()
     return
 
 if __name__ == '__main__':
