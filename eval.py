@@ -5,6 +5,7 @@ import random
 from collections import namedtuple, deque
 from itertools import count
 from RL_model import BreakoutQNet
+from linear_model import LinearBreakoutQNet
 from gymnasium.wrappers import FrameStack
 from gymnasium.wrappers import RecordVideo
 import torch
@@ -19,15 +20,15 @@ warnings.simplefilter("ignore")
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def main():
-    env = gym.make('ALE/Breakout-v5', obs_type="grayscale", render_mode='rgb_array')
+    env = gym.make('ALE/Breakout-v5', obs_type="ram", render_mode='rgb_array')
     env = FrameStack(env, 4)
     env = RecordVideo(env, video_folder='data\\final_video')
     n_actions = env.action_space.n
     state, info = env.reset()
-    state_shape = transform(state).shape
-    policy_net = BreakoutQNet(state_shape, n_actions).to(device)
+    state_shape = state.shape[0] * state.shape[1]
+    policy_net = LinearBreakoutQNet(state_shape, n_actions).to(device)
     policy_net.load_state_dict(torch.load('data\\model.pth'))
-    state = transform(state).unsqueeze(0).to(device)
+    state = torch.tensor(state, dtype=torch.float32, device=device).view(-1).unsqueeze(0)
     running_reward = 0.0
     done = False
     with torch.no_grad():
@@ -40,7 +41,7 @@ def main():
             if terminated:
                 next_state = None
             else:
-                next_state = transform(observation).unsqueeze(0).to(device)
+                next_state = torch.tensor(observation, dtype=torch.float32, device=device).view(-1).unsqueeze(0)
             state = next_state
     return
 

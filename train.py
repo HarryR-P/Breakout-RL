@@ -5,6 +5,7 @@ import random
 from collections import namedtuple, deque
 from itertools import count
 from RL_model import BreakoutQNet
+from linear_model import LinearBreakoutQNet
 from gymnasium.wrappers import FrameStack, RecordVideo
 
 import torch
@@ -18,13 +19,13 @@ import warnings
 warnings.simplefilter("ignore")
 
 num_episodes = 1000
-BATCH_SIZE = 32
-GAMMA = 0.9
+BATCH_SIZE = 256
+GAMMA = 0.99
 EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 1000
-# TAU = 0.005
-LR = 1e-2
+TAU = 0.005
+LR = 1e-4
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 transforms = v2.Compose([
@@ -36,7 +37,7 @@ steps_done = 0
 
 def main():
     env = gym.make('ALE/Breakout-v5', 
-                   obs_type="grayscale", 
+                   obs_type="ram", 
                    render_mode='rgb_array',
                    frameskip=4)
     env = FrameStack(env, 4)
@@ -44,15 +45,17 @@ def main():
 
     n_actions = env.action_space.n
     state, info = env.reset()
-    state_shape = transform(state).shape
+    # state_shape = transform(state).shape
+    state_shape = state.shape[0] * state.shape[1]
 
-    policy_net = BreakoutQNet(state_shape, n_actions).to(device)
-    target_net = BreakoutQNet(state_shape, n_actions).to(device)
+    # policy_net = BreakoutQNet(state_shape, n_actions).to(device)
+    policy_net = LinearBreakoutQNet(state_shape, n_actions).to(device)
+    target_net = LinearBreakoutQNet(state_shape, n_actions).to(device)
     target_net.load_state_dict(policy_net.state_dict())
 
     loss_func = nn.MSELoss()
     optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
-    memory = ReplayMemory(1_000_000)
+    memory = ReplayMemory(10000)
     total_reward = 0.0
 
     reward_per_episode = []
@@ -61,7 +64,8 @@ def main():
     for i_episode in range(num_episodes):
         # Initialize the environment and get it's state
         state, info = env.reset()
-        state = transform(state).unsqueeze(0).to(device)
+        # state = transform(state).unsqueeze(0).to(device)
+        state = torch.tensor(state, dtype=torch.float32, device=device).view(-1).unsqueeze(0)
         running_reward = 0.0
         done = False
         while not done:
@@ -75,7 +79,7 @@ def main():
             if terminated:
                 next_state = None
             else:
-                next_state = transform(observation).unsqueeze(0).to(device)
+                next_state = torch.tensor(observation, dtype=torch.float32, device=device).view(-1).unsqueeze(0)
 
             # Store the transition in memory
             memory.push(state, action, next_state, reward)
@@ -84,23 +88,24 @@ def main():
             state = next_state
 
             # Perform one step of the optimization (on the policy network)
-            optimize_model(memory, policy_net, optimizer, loss_func)
+            optimize_model(memory, policy_net, target_net, optimizer, loss_func)
 
             # Soft update of the target network's weights
             # θ′ ← τ θ + (1 −τ )θ′
-            # target_net_state_dict = target_net.state_dict()
-            # policy_net_state_dict = policy_net.state_dict()
-            # for key in policy_net_state_dict:
-            #     target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
-            # target_net.load_state_dict(target_net_state_dict)
+            target_net_state_dict = target_net.state_dict()
+            policy_net_state_dict = policy_net.state_dict()
+            for key in policy_net_state_dict:
+                target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
+            target_net.load_state_dict(target_net_state_dict)
 
         reward_per_episode.append(running_reward)
         mean_reward.append(total_reward/(i_episode+1))
-        if running_reward > score:
+        if running_reward >= score:
             score = running_reward
+            torch.save(policy_net.state_dict(),'data\\model_best.pth')
         print(f'Episode {i_episode+1}/{num_episodes}\n\trunning reward: {running_reward}, average reward: {total_reward/(i_episode+1):.2f}, top score {score}')
     
-    torch.save(policy_net.state_dict(),'data\\model.pth')
+    torch.save(policy_net.state_dict(),'data\\model_final.pth')
     print('Complete')
     plt.plot(reward_per_episode)
     plt.plot(mean_reward)
@@ -144,7 +149,7 @@ def select_action(state, env, policy_net):
         return torch.tensor([[env.action_space.sample()]], device=device, dtype=torch.long)
     
 
-def optimize_model(memory, policy_net, optimizer, loss_func):
+def optimize_model(memory, policy_net, target_net, optimizer, loss_func):
     if len(memory) < BATCH_SIZE:
         return
     transitions = memory.sample(BATCH_SIZE)
@@ -162,18 +167,17 @@ def optimize_model(memory, policy_net, optimizer, loss_func):
 
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
     with torch.no_grad():
-        # next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0]
-        next_state_values[non_final_mask] = policy_net(non_final_next_states).max(1)[0]
+        next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0]
+        # next_state_values[non_final_mask] = policy_net(non_final_next_states).max(1)[0]
     # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
-
 
     loss = loss_func(state_action_values, expected_state_action_values.unsqueeze(1))
 
     optimizer.zero_grad()
     loss.backward()
     # In-place gradient clipping
-    #torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
+    torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
     optimizer.step()
 
 
