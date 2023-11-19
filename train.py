@@ -5,7 +5,7 @@ import random
 from collections import namedtuple, deque
 from itertools import count
 from RL_model import BreakoutQNet
-from gymnasium.wrappers import FrameStack
+from gymnasium.wrappers import FrameStack, RecordVideo
 
 import torch
 import torch.nn as nn
@@ -16,7 +16,7 @@ from torchvision.transforms import v2
 import warnings
 warnings.simplefilter("ignore")
 
-num_episodes = 1200
+num_episodes = 10000
 BATCH_SIZE = 128
 GAMMA = 0.99
 EPS_START = 0.9
@@ -34,8 +34,9 @@ transforms = v2.Compose([
 steps_done = 0
 
 def main():
-    env = gym.make('ALE/Breakout-v5', obs_type="grayscale")
+    env = gym.make('ALE/Breakout-v5', obs_type="grayscale", render_mode='rgb_array')
     env = FrameStack(env, 4)
+    env = RecordVideo(env, 'data//progress_videos', episode_trigger=lambda t: t % 1000 == 0, disable_logger=True)
 
     n_actions = env.action_space.n
     state, info = env.reset()
