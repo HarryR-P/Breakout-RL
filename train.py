@@ -19,10 +19,10 @@ import warnings
 warnings.simplefilter("ignore")
 
 num_episodes = 1000
-BATCH_SIZE = 256
+BATCH_SIZE = 32
 GAMMA = 0.99
-EPS_START = 0.9
-EPS_END = 0.05
+EPS_START = 0.95
+EPS_END = 0.3
 EPS_DECAY = 1000
 TAU = 0.005
 LR = 1e-4
