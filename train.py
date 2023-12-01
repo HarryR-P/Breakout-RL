@@ -18,12 +18,12 @@ from torchvision.transforms.functional import crop
 import warnings
 warnings.simplefilter("ignore")
 
-num_episodes = 1000
-BATCH_SIZE = 32
+num_episodes = 20000
+BATCH_SIZE = 132
 GAMMA = 0.99
-EPS_START = 0.95
-EPS_END = 0.3
-EPS_DECAY = 1000
+EPS_START = 1.0
+EPS_END = 0.1
+EPS_DECAY = 10000
 TAU = 0.005
 LR = 1e-4
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -41,7 +41,7 @@ def main():
                    render_mode='rgb_array',
                    frameskip=4)
     env = FrameStack(env, 4)
-    env = RecordVideo(env, 'data//progress_videos', episode_trigger=lambda t: t % 100 == 0, disable_logger=True)
+    env = RecordVideo(env, 'data//progress_videos', episode_trigger=lambda t: t % 1000 == 0, disable_logger=True)
 
     n_actions = env.action_space.n
     state, info = env.reset()
