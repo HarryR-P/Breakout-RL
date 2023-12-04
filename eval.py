@@ -27,7 +27,7 @@ def main():
     state, info = env.reset()
     state_shape = state.shape[0] * state.shape[1]
     policy_net = LinearBreakoutQNet(state_shape, n_actions).to(device)
-    policy_net.load_state_dict(torch.load('data\\model.pth'))
+    policy_net.load_state_dict(torch.load('model_version\\v2\\model_final.pth'))
     state = torch.tensor(state, dtype=torch.float32, device=device).view(-1).unsqueeze(0)
     running_reward = 0.0
     done = False

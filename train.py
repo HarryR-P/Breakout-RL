@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 from collections import namedtuple, deque
-from itertools import count
 from RL_model import BreakoutQNet
 from linear_model import LinearBreakoutQNet
 from gymnasium.wrappers import FrameStack, RecordVideo
@@ -18,12 +17,12 @@ from torchvision.transforms.functional import crop
 import warnings
 warnings.simplefilter("ignore")
 
-num_episodes = 20000
-BATCH_SIZE = 132
+num_episodes = 50000
+BATCH_SIZE = 32
 GAMMA = 0.99
 EPS_START = 1.0
 EPS_END = 0.1
-EPS_DECAY = 10000
+EPS_DECAY = 100000
 TAU = 0.005
 LR = 1e-4
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -41,7 +40,7 @@ def main():
                    render_mode='rgb_array',
                    frameskip=4)
     env = FrameStack(env, 4)
-    env = RecordVideo(env, 'data//progress_videos', episode_trigger=lambda t: t % 1000 == 0, disable_logger=True)
+    env = RecordVideo(env, 'data//progress_videos', episode_trigger=lambda t: t % 1000 == 0, disable_logger=True, )
 
     n_actions = env.action_space.n
     state, info = env.reset()
@@ -55,7 +54,7 @@ def main():
 
     loss_func = nn.MSELoss()
     optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
-    memory = ReplayMemory(10000)
+    memory = ReplayMemory(100000)
     total_reward = 0.0
 
     reward_per_episode = []

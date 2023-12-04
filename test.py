@@ -21,12 +21,13 @@ def main():
     #     v2.ToTensor(),
     #     v2.Resize(size=(110,84)),
     # ])
-    env = gym.make('ALE/Breakout-v5',
-                   obs_type="ram")
-    env = FrameStack(env, 4)
+    env = gym.make('ALE/Breakout-v5')
+    # env = FrameStack(env, 4)
     state, info = env.reset()
 
-    print(torch.tensor(state).view(-1).shape)
+    plt.imshow(state)
+    plt.axis('off')
+    plt.show()
     return
 
 if __name__ == '__main__':
