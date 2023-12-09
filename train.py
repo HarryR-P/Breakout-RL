@@ -40,7 +40,7 @@ def main():
                    render_mode='rgb_array',
                    frameskip=4)
     env = FrameStack(env, 4)
-    env = RecordVideo(env, 'data//progress_videos', episode_trigger=lambda t: t % 1000 == 0, disable_logger=True, )
+    env = RecordVideo(env, 'data//progress_videos', episode_trigger=lambda t: t % 1000 == 0, disable_logger=True)
 
     n_actions = env.action_space.n
     state, info = env.reset()
